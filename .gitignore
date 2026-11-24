@@ -12,3 +12,6 @@ dist/
 
 # os
 .DS_Store
+
+# case study 产物（含模型输出）
+case-studies/*/out/
