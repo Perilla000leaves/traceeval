@@ -1,0 +1,7 @@
+{"id": "c01-multi-hop", "question": "这个工单的客户和标签分别是什么", "expected_tools": ["lookup_ticket", "lookup_customer", "list_tags"], "match": "in_order", "tags": ["happy-path"]}
+{"id": "c02-args", "question": "查 2026-11-18 的工单", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18", "limit": 10}}], "tags": ["args"]}
+{"id": "c03-ghost", "question": "把这批工单的分类重算一遍", "expected_tools": ["rebuild_category"], "tags": ["ghost-call"]}
+{"id": "c04-duplicate", "question": "查一下这个工单的详情", "expected_tools": ["lookup_ticket"], "tags": ["duplicate"]}
+{"id": "c05-order", "question": "先关单，再通知客户", "expected_tools": ["close_ticket", "notify_customer"], "match": "exact", "tags": ["order"]}
+{"id": "c06-no-expectation", "question": "随便聊聊你们的产品", "expected_tools": [], "tags": ["no-expectation"]}
+{"id": "c07-missing-trace", "question": "把上个月的报表导出", "expected_tools": ["export_report"], "tags": ["missing-trace"]}

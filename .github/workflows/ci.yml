@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]" ruff
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: Run the bundled baseline (report only)
+        run: python -m traceeval run --suite suites/support_agent.jsonl --traces suites/support_agent.baseline.jsonl
