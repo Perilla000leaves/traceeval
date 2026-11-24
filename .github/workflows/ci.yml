@@ -23,7 +23,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install
+      - name: Install (no framework deps)
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test]" ruff
@@ -36,3 +36,23 @@ jobs:
 
       - name: Run the bundled baseline (report only)
         run: python -m traceeval run --suite suites/support_agent.jsonl --traces suites/support_agent.baseline.jsonl
+
+  # 单独一个 job 装上真实框架，验证鸭子类型与官方协议仍然对得上。
+  # 使用者不需要这些依赖；它们只出现在这里，用来提前发现协议变更。
+  compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install with real frameworks
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test,compat]"
+
+      - name: Compatibility tests
+        run: python -m pytest -q tests/test_compat_langchain.py tests/test_compat_adk.py

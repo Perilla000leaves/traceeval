@@ -38,7 +38,19 @@ class TraceCallbackHandler:
     **为什么要按 run_id 配对**：LangChain 的 `on_tool_start` 与 `on_tool_end` 通过
     `run_id` 关联。只记 start 不记 end，就分不清「调了并拿到结果」和「调了但抛错/中断」——
     后者在日志里看起来也是"调用过"。
+
+    **为什么必须有下面三个类属性**：LangChain 的 `handle_event` 直接读
+    `handler.ignore_agent` / `handler.raise_error`（没有默认值，也不是 `getattr(handler, x, False)`）。
+    鸭子类型缺了它们会抛 `AttributeError`，而外层 `try/except` 只打一条 warning 就跳过——
+    表现为「装上 traceeval 后轨迹永远是空的」。这三个属性是协议的一部分，不是可选项。
     """
+
+    #: 协议要求：是否让回调异常向上抛（我们不抛，评测不该影响被测系统）
+    raise_error = False
+    #: 协议要求：是否忽略 agent 事件（我们只关心工具事件，但不忽略）
+    ignore_agent = False
+    #: 协议要求：是否在调用线程内同步执行（默认 False 即可）
+    run_inline = False
 
     def __init__(self) -> None:
         self._calls: list[Call] = []

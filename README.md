@@ -7,9 +7,12 @@
 可归因、可复现的调用序列。
 
 ```bash
-pip install -e ".[test]"
+pip install -e .
 python -m traceeval run --suite suites/support_agent.jsonl --traces suites/support_agent.baseline.jsonl
 ```
+
+**运行时零依赖**：`pip install traceeval` 不会给你装 LangChain / ADK / OpenAI SDK。
+接入层用鸭子类型实现，框架是你自己的，评测器不掺和。
 
 内置一份 7 条的示例集与录好的轨迹，**不需要任何 API key** 就能跑出完整报告。
 
@@ -77,6 +80,11 @@ print(result.status, result.reasons)
 
 LangGraph 复用同一套回调协议（会额外传 `parent_run_id` / `tags` / `metadata`），
 所以 `TraceCallbackHandler` 一行都不用改。
+
+> **一个真实的坑**：LangChain 的 `handle_event` 会直接读 `handler.ignore_agent` /
+> `handler.raise_error`（不是 `getattr(..., False)`）。鸭子类型缺这两个属性会抛
+> `AttributeError`，而外层 `try/except` 只打一条 warning 就跳过——表现是**装上评测器后轨迹永远为空**。
+> 这两个属性是协议的一部分，`TraceCallbackHandler` 里显式声明了。这个 bug 就是被兼容测试抓出来的。
 
 ### Google ADK
 
@@ -191,6 +199,17 @@ python -m traceeval run --suite s.jsonl --traces t.jsonl --fail-under 90 # 通�
 
 如果你只是想知道「回复对不对」，这个项目帮不上忙；如果你在排查「agent 为什么行为不对」，
 它要的就是这份轨迹。
+
+## 依赖
+
+| 谁 | 要装什么 |
+|---|---|
+| 使用者 | **什么都不用装**（除 Python 3.11+）。运行时 `dependencies = []` |
+| 跑测试的人 | `pip install -e ".[test]"`（pytest） |
+| 验证框架协议的人 | `pip install -e ".[compat]"`（langchain-core + google-adk，**只用于兼容测试**） |
+
+兼容测试用 `pytest.importorskip` 守卫：没装框架就跳过，CI 里单独一个 `compat` job 装上真实框架跑，
+用来提前发现「官方协议变了而我们的鸭子类型没跟上」。
 
 ## 开发
 

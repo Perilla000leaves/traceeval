@@ -18,6 +18,10 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
+# 兼容测试用的可选依赖：使用者不需要装，只有在验证「鸭子类型是否还对得上官方协议」时才装
+langchain = ["langchain-core>=0.3"]
+adk = ["google-adk>=1.0"]
+compat = ["langchain-core>=0.3", "google-adk>=1.0"]
 
 [project.scripts]
 traceeval = "traceeval.cli:main"
