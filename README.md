@@ -247,6 +247,16 @@ pip install -r requirements-dev.txt  # 接入依赖 + 测试工具（langchain-c
 中途提示过度泛化导致过一次回归（97.2%），收窄规则后才到 100%。
 详见 [`case-studies/langgraph-react/RESULTS.md`](case-studies/langgraph-react/RESULTS.md)。
 
+## Case studies
+
+两篇，都是真跑出来的：
+
+- [`case-studies/langgraph-react/`](case-studies/langgraph-react/)：48 条任务 × 3 轮 × 3 个版本（432 次运行），
+  轨迹通过率 **95.8% → 97.9% → 100%**，答复违规 5 → 0。含一次提示过度泛化导致的**回归**。
+- [`case-studies/cross-framework/`](case-studies/cross-framework/)：同模型、同工具、同任务，
+  只换 LangGraph / LangChain / ADK，三家都是 **100%**；但第一次跑 ADK 只有 39.6%——
+  因为我的适配层漏传了工具 schema。**适配层是跨框架评测里最大的混淆变量。**
+
 ## 开发
 
 ```bash
