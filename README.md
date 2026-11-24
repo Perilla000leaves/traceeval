@@ -202,14 +202,23 @@ python -m traceeval run --suite s.jsonl --traces t.jsonl --fail-under 90 # 通�
 
 ## 依赖
 
-| 谁 | 要装什么 |
-|---|---|
-| 使用者 | **什么都不用装**（除 Python 3.11+）。运行时 `dependencies = []` |
-| 跑测试的人 | `pip install -e ".[test]"`（pytest） |
-| 验证框架协议的人 | `pip install -e ".[compat]"`（langchain-core + google-adk，**只用于兼容测试**） |
+**核心零依赖**（`dependencies = []`），**接入模块真依赖框架**——这是有意的分层：
 
-兼容测试用 `pytest.importorskip` 守卫：没装框架就跳过，CI 里单独一个 `compat` job 装上真实框架跑，
-用来提前发现「官方协议变了而我们的鸭子类型没跟上」。
+| 模块 | 依赖 | 为什么 |
+|---|---|---|
+| `trajectory` / `metrics` / `report` / `suite` / `cli` | 无 | 判定逻辑与框架无关；测 OpenAI SDK 的人不该被迫装 LangChain |
+| `integrations.langchain` | `langchain-core`（`pip install traceeval[langchain]`） | **真继承 `BaseCallbackHandler`**，不是照着文档猜协议 |
+| `integrations.adk` | `google-adk`（`pip install traceeval[adk]`） | 用真实 `BaseTool` 做类型判断 |
+| 测试 | `pytest`（`[test]`） | — |
+
+装了就真继承、没装就退化成同名接口（`LANGCHAIN_AVAILABLE` / `ADK_AVAILABLE` 会告诉你当前状态），
+所以核心测试在没有框架的环境里照样能跑——CI 的 `test` job 就是这种环境，
+`compat` job 则装上真实框架跑同一批接入测试。
+
+```python
+from traceeval.integrations import LANGCHAIN_AVAILABLE
+# True = 当前用的是真实 BaseCallbackHandler 子类
+```
 
 ## 开发
 

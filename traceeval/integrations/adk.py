@@ -8,8 +8,10 @@ ADK 的机制和 LangChain 完全不同，所以单独一个适配器：
 - **离线**：`trajectory_from_adk_events` 直接读 ADK 的 Event 列表
   （`content.parts[*].function_call` / `function_response`），不需要跑 agent。
 
-仍然不 import `google.adk`：回调按方法名/属性名调用，tool 对象只取 `.name`，
-所以没装 ADK 也能跑测试（用 `SimpleNamespace(name="...")` 模拟）。
+装上 `google-adk` 时用真实的 `BaseTool` 做类型判断；没装时退化成属性读取，
+所以核心测试不依赖 ADK。
+
+安装：``pip install traceeval[adk]``
 """
 from __future__ import annotations
 
@@ -20,11 +22,21 @@ from typing import Any
 
 from ..trajectory import Call, Trajectory
 
-__all__ = ["AdkTraceRecorder", "trajectory_from_adk_events"]
+try:  # 装了就按官方类型判断，没装就退化
+    from google.adk.tools import BaseTool as _AdkBaseTool
+
+    ADK_AVAILABLE = True
+except ImportError:  # pragma: no cover - 取决于环境
+    _AdkBaseTool = None  # type: ignore[assignment]
+    ADK_AVAILABLE = False
+
+__all__ = ["ADK_AVAILABLE", "AdkTraceRecorder", "trajectory_from_adk_events"]
 
 
 def _tool_name(tool: Any) -> str:
     """ADK 传的是 BaseTool 实例；名字在 `.name`，取不到就退化用字符串。"""
+    if _AdkBaseTool is not None and isinstance(tool, _AdkBaseTool):
+        return str(tool.name)
     name = getattr(tool, "name", None)
     return str(name) if name else str(tool)
 

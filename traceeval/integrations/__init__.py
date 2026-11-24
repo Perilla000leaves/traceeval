@@ -1,14 +1,17 @@
-"""框架接入层：把各框架的运行时事件读成 `Trajectory`。
+"""框架接入层：每个框架一个模块，缺依赖时优雅降级。
 
-设计原则：**内核不 import 任何框架，接入层用鸭子类型**。
+分层原则：
 
-- `TraceCallbackHandler` 实现 LangChain / LangGraph 的回调协议（`on_tool_start` /
-  `on_tool_end` / `on_tool_error`），但**不继承也不导入** `BaseCallbackHandler`。
-  LangChain 只按方法名回调，鸭子类型完全够用，这样装上框架的人不用为评测多装东西，
-  没装框架的人也能跑测试（测试里用普通 dict 模拟 serialized）。
-- OTel 走 GenAI 语义约定，接上它就等于接上所有能导出 OTel 的追踪后端。
+- **接入模块可以 import 框架**。它本来就是框架专用代码；不 import 只是"照着文档猜协议"。
+  LangChain 的 handler 直接继承 `BaseCallbackHandler`，ADK 的录制器按 `BaseTool` 做类型判断。
+- **核心判定不 import 框架**。`trajectory` / `metrics` / `report` 对框架一无所知，
+  所以测 OpenAI SDK 的人不需要为了评测装 LangChain。
 
-判定逻辑一行都不在这里——这里只做「把事件收集成 Call 列表」。
+安装对应 extra 即可获得真依赖：
+
+- ``pip install traceeval[langchain]``
+- ``pip install traceeval[adk]``
+- ``pip install traceeval[compat]``（两个都装，用于验证协议兼容）
 """
 from __future__ import annotations
 
@@ -16,105 +19,17 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from ..trajectory import Call, Status, Trajectory
-from .adk import AdkTraceRecorder, trajectory_from_adk_events
+from .adk import ADK_AVAILABLE, AdkTraceRecorder, trajectory_from_adk_events
+from .langchain import LANGCHAIN_AVAILABLE, TraceCallbackHandler
 
 __all__ = [
+    "ADK_AVAILABLE",
+    "LANGCHAIN_AVAILABLE",
     "AdkTraceRecorder",
     "TraceCallbackHandler",
     "trajectory_from_adk_events",
     "trajectory_from_otel_spans",
 ]
-
-
-class TraceCallbackHandler:
-    """LangChain / LangGraph 回调处理器：录下工具调用与返回。
-
-    用法（不依赖 traceeval 装 langchain）：:
-
-        handler = TraceCallbackHandler()
-        agent.invoke({...}, config={"callbacks": [handler]})
-        result = traceeval.score("case-1", ["lookup_ticket"], handler.trajectory())
-
-    **为什么要按 run_id 配对**：LangChain 的 `on_tool_start` 与 `on_tool_end` 通过
-    `run_id` 关联。只记 start 不记 end，就分不清「调了并拿到结果」和「调了但抛错/中断」——
-    后者在日志里看起来也是"调用过"。
-
-    **为什么必须有下面三个类属性**：LangChain 的 `handle_event` 直接读
-    `handler.ignore_agent` / `handler.raise_error`（没有默认值，也不是 `getattr(handler, x, False)`）。
-    鸭子类型缺了它们会抛 `AttributeError`，而外层 `try/except` 只打一条 warning 就跳过——
-    表现为「装上 traceeval 后轨迹永远是空的」。这三个属性是协议的一部分，不是可选项。
-    """
-
-    #: 协议要求：是否让回调异常向上抛（我们不抛，评测不该影响被测系统）
-    raise_error = False
-    #: 协议要求：是否忽略 agent 事件（我们只关心工具事件，但不忽略）
-    ignore_agent = False
-    #: 协议要求：是否在调用线程内同步执行（默认 False 即可）
-    run_inline = False
-
-    def __init__(self) -> None:
-        self._calls: list[Call] = []
-        self._index: dict[str, int] = {}
-
-    # -- LangChain 回调协议（方法名即协议，无需继承） ------------------------- #
-
-    def on_tool_start(
-        self,
-        serialized: Mapping[str, Any] | None = None,
-        input_str: str | None = None,
-        *,
-        run_id: Any = None,
-        inputs: Mapping[str, Any] | None = None,
-        **_: Any,
-    ) -> None:
-        """工具开始执行。`serialized` 里带 name；`inputs` 是结构化参数。"""
-        name = ""
-        if isinstance(serialized, Mapping):
-            name = str(serialized.get("name") or serialized.get("id") or "")
-        name = name or "unknown"
-        args = dict(inputs) if isinstance(inputs, Mapping) else None
-        key = str(run_id) if run_id is not None else f"auto-{len(self._calls)}"
-        self._index[key] = len(self._calls)
-        self._calls.append(Call(name=name, args=args, result_ok=None))
-
-    def on_tool_end(self, output: Any = None, *, run_id: Any = None, **_: Any) -> None:
-        """工具正常结束：标记拿到返回。空输出视为没拿到（很多框架把异常吞成空串）。"""
-        self._finish(run_id, ok=_output_ok(output))
-
-    def on_tool_error(self, error: Any = None, *, run_id: Any = None, **_: Any) -> None:
-        """工具抛错：标记失败，但调用本身仍记在轨迹里。"""
-        self._finish(run_id, ok=False)
-
-    # -- 取结果 --------------------------------------------------------------- #
-
-    def trajectory(self) -> Trajectory:
-        """当前录到的轨迹（可在一次运行结束后多次调用）。"""
-        return Trajectory(calls=list(self._calls))
-
-    def reset(self) -> None:
-        self._calls.clear()
-        self._index.clear()
-
-    def _finish(self, run_id: Any, *, ok: bool) -> None:
-        key = str(run_id) if run_id is not None else ""
-        index = self._index.pop(key, None)
-        if index is None:
-            return
-        original = self._calls[index]
-        self._calls[index] = Call(
-            name=original.name, args=original.args, result_ok=ok, raw=original.raw
-        )
-
-
-def _output_ok(output: Any) -> bool:
-    """工具输出是否算「拿到了结果」。"""
-    if output is None:
-        return False
-    if isinstance(output, str):
-        return bool(output.strip())
-    if isinstance(output, (list, tuple, dict)):
-        return bool(output)
-    return True
 
 
 def trajectory_from_otel_spans(spans: Iterable[Mapping[str, Any]]) -> Trajectory:
@@ -157,7 +72,7 @@ def trajectory_from_otel_spans(spans: Iterable[Mapping[str, Any]]) -> Trajectory
     return Trajectory(calls=calls)
 
 
-def summarize_handler(handler: TraceCallbackHandler) -> dict[str, Any]:
+def summarize_handler(handler: Any) -> dict[str, Any]:
     """给调试用的轻量摘要（不依赖 report 模块，避免循环导入）。"""
     trajectory = handler.trajectory()
     return {
