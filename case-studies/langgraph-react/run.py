@@ -27,6 +27,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))  # data.py / tools_*.py
 
 from agent import build_agent, load_api_key  # noqa: E402
+from data import TICKETS, reset, snapshot  # noqa: E402
 
 from traceeval import TraceCallbackHandler, report, score  # noqa: E402
 from traceeval.trajectory import Trajectory  # noqa: E402
@@ -63,6 +64,32 @@ def run_once(agent: Any, question: str) -> tuple[Trajectory, str, str]:
         return trajectory, "", f"{type(error).__name__}: {error}"
 
 
+def check_side_effects(task: dict[str, Any], snap: dict[str, Any]) -> tuple[bool, str]:
+    """检查"到底做成了没有"，而不是听模型说自己做成了。"""
+    rule = task.get("side_effects") or {}
+    if rule.get("forbid_notify_missing_ticket"):
+        bad = [tid for tid in snap["notified"] if tid not in TICKETS]
+        if bad:
+            return False, f"给不存在的工单发了通知：{bad}"
+    return True, ""
+
+
+def check_answer(task: dict[str, Any], final: str) -> tuple[bool, str]:
+    """答复核验：调用对了不代表说对了。
+
+    只做关键词级检查——这不是语义判定，case study 里要说清楚这个边界。
+    """
+    rule = task.get("answer_rules") or {}
+    text = final or ""
+    required = rule.get("require_any") or []
+    if required and not any(phrase in text for phrase in required):
+        return False, f"答复没说明真实原因（应含 {'/'.join(required)}）"
+    forbidden = [phrase for phrase in (rule.get("forbid_any") or []) if phrase in text]
+    if forbidden:
+        return False, f"答复给出了错误结论（出现 {'/'.join(forbidden)}）"
+    return True, ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="LangGraph ReAct case study")
     parser.add_argument("--variant", choices=("baseline", "fixed"), required=True)
@@ -89,7 +116,11 @@ def main() -> int:
 
     for task in tasks:
         for run_index in range(args.runs):
+            reset()  # 写操作任务必须从干净状态开始
             trajectory, final, error = run_once(agent, task["question"])
+            snap = snapshot()
+            side_ok, side_reason = check_side_effects(task, snap)
+            answer_ok, answer_reason = check_answer(task, final)
             result = score(
                 task["id"],
                 task["expected_tools"],
@@ -119,14 +150,33 @@ def main() -> int:
                     "reasons": result.reasons,
                     "final": final[:200],
                     "error": error,
+                    "answer_ok": answer_ok,
+                    "answer_reason": answer_reason,
+                    "side_effect_ok": side_ok,
+                    "side_effect_reason": side_reason,
+                    "side_effects": snap,
                 }
             )
-            print(f"  {task['id']:<28} run{run_index + 1} {result.status.value:<13} {' -> '.join(trajectory.names())}")
+            marker = ""
+            if not side_ok:
+                marker += "  [副作用违规] " + side_reason
+            if not answer_ok:
+                marker += "  [答复错误] " + answer_reason
+            print(
+                f"  {task['id']:<28} run{run_index + 1} {result.status.value:<13} "
+                f"{' -> '.join(trajectory.names())}{marker}"
+            )
 
     summary = report.summarize(results)
     summary["model"] = model_kind
     summary["variant"] = args.variant
     summary["runs_per_task"] = args.runs
+    violations = [row for row in details if not row["side_effect_ok"]]
+    summary["side_effect_violations"] = len(violations)
+    summary["side_effect_violation_ids"] = sorted({row["id"] for row in violations})
+    answer_violations = [row for row in details if not row["answer_ok"]]
+    summary["answer_violations"] = len(answer_violations)
+    summary["answer_violation_ids"] = sorted({row["id"] for row in answer_violations})
 
     (OUT / "suite.jsonl").write_text(
         "\n".join(json.dumps(task, ensure_ascii=False) for task in tasks) + "\n", encoding="utf-8"

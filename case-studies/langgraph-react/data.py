@@ -59,3 +59,28 @@ def is_valid_date(value: str) -> bool:
     except ValueError:
         return False
     return True
+
+
+#: 通知记录（用来验证"到底发出去了没有"，而不是听模型说）
+NOTIFICATIONS: list[dict[str, Any]] = []
+
+_INITIAL_TICKETS = {tid: dict(t) for tid, t in TICKETS.items()}
+
+
+def reset() -> None:
+    """每次运行前重置：写操作任务必须从干净状态开始，否则后几轮的行为会被污染。"""
+    TICKETS.clear()
+    TICKETS.update({tid: dict(t) for tid, t in _INITIAL_TICKETS.items()})
+    NOTIFICATIONS.clear()
+
+
+def snapshot() -> dict[str, Any]:
+    """本轮的实际副作用。"""
+    return {
+        "closed": sorted(
+            tid
+            for tid, ticket in TICKETS.items()
+            if ticket["status"] == "closed" and _INITIAL_TICKETS[tid]["status"] != "closed"
+        ),
+        "notified": [item["ticket_id"] for item in NOTIFICATIONS],
+    }

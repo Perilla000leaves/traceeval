@@ -1,0 +1,104 @@
+===== baseline =====
+  t01-ticket-then-customer     run1 pass          lookup_ticket -> lookup_customer
+  t01-ticket-then-customer     run2 pass          lookup_ticket -> lookup_customer
+  t01-ticket-then-customer     run3 pass          lookup_ticket -> lookup_customer
+  t02-list-by-date             run1 pass          list_tickets
+  t02-list-by-date             run2 pass          list_tickets
+  t02-list-by-date             run3 pass          list_tickets
+  t03-close-then-notify        run1 pass          lookup_ticket -> close_ticket -> notify_customer
+  t03-close-then-notify        run2 pass          lookup_ticket -> close_ticket -> notify_customer
+  t03-close-then-notify        run3 pass          lookup_ticket -> close_ticket -> notify_customer
+  t04-export-report            run1 pass          export_report
+  t04-export-report            run2 pass          export_report
+  t04-export-report            run3 pass          export_report
+  t05-missing-ticket           run1 pass          lookup_ticket
+  t05-missing-ticket           run2 pass          lookup_ticket
+  t05-missing-ticket           run3 pass          lookup_ticket
+  t06-bad-date                 run1 pass          list_tickets  [答复错误] 答复没说明真实原因（应含 格式/无效/不合法）
+  t06-bad-date                 run2 pass          list_tickets  [答复错误] 答复给出了错误结论（出现 结果为空/没有查到）
+  t06-bad-date                 run3 pass          list_tickets  [答复错误] 答复给出了错误结论（出现 没有找到/结果为空）
+  t07-customer-tickets         run1 pass          list_tickets_by_customer
+  t07-customer-tickets         run2 pass          list_tickets_by_customer
+  t07-customer-tickets         run3 pass          list_tickets_by_customer
+  t08-ticket-detail            run1 pass          lookup_ticket
+  t08-ticket-detail            run2 pass          lookup_ticket
+  t08-ticket-detail            run3 pass          lookup_ticket
+  t09-customer-plan            run1 pass          lookup_customer
+  t09-customer-plan            run2 pass          lookup_customer
+  t09-customer-plan            run3 pass          lookup_customer
+  t10-missing-report           run1 pass          export_report
+  t10-missing-report           run2 pass          export_report  [答复错误] 答复没说明真实原因（应含 没有/不存在）
+  t10-missing-report           run3 pass          export_report
+  t11-close-missing-ticket     run1 pass          lookup_ticket
+  t11-close-missing-ticket     run2 pass          lookup_ticket
+  t11-close-missing-ticket     run3 pass          lookup_ticket
+  t12-direct-close-missing     run1 pass          lookup_ticket
+  t12-direct-close-missing     run2 pass          lookup_ticket
+  t12-direct-close-missing     run3 pass          lookup_ticket
+
+variant=baseline model=deepseek runs=3
+{"total": 36, "passed": 36, "failed": 0, "undetermined": 0, "pass_rate": 100.0, "undetermined_rate": 0.0, "ghost_calls": 0}
+===== fixed =====
+  t01-ticket-then-customer     run1 pass          lookup_ticket -> lookup_customer
+  t01-ticket-then-customer     run2 pass          lookup_ticket -> lookup_customer
+  t01-ticket-then-customer     run3 pass          lookup_ticket -> lookup_customer
+  t02-list-by-date             run1 pass          list_tickets
+  t02-list-by-date             run2 pass          list_tickets
+  t02-list-by-date             run3 pass          list_tickets
+  t03-close-then-notify        run1 pass          lookup_ticket -> close_ticket -> notify_customer
+  t03-close-then-notify        run2 pass          lookup_ticket -> close_ticket -> notify_customer
+  t03-close-then-notify        run3 pass          lookup_ticket -> close_ticket -> notify_customer
+  t04-export-report            run1 pass          export_report
+  t04-export-report            run2 pass          export_report
+  t04-export-report            run3 pass          export_report
+  t05-missing-ticket           run1 pass          lookup_ticket
+  t05-missing-ticket           run2 pass          lookup_ticket
+  t05-missing-ticket           run3 pass          lookup_ticket
+  t06-bad-date                 run1 pass          list_tickets
+  t06-bad-date                 run2 pass          list_tickets
+  t06-bad-date                 run3 pass          list_tickets
+  t07-customer-tickets         run1 pass          list_tickets_by_customer
+  t07-customer-tickets         run2 pass          list_tickets_by_customer
+  t07-customer-tickets         run3 pass          list_tickets_by_customer
+  t08-ticket-detail            run1 pass          lookup_ticket
+  t08-ticket-detail            run2 pass          lookup_ticket
+  t08-ticket-detail            run3 pass          lookup_ticket
+  t09-customer-plan            run1 pass          lookup_customer
+  t09-customer-plan            run2 pass          lookup_customer
+  t09-customer-plan            run3 pass          lookup_customer
+  t10-missing-report           run1 pass          export_report
+  t10-missing-report           run2 pass          export_report
+  t10-missing-report           run3 pass          export_report
+  t11-close-missing-ticket     run1 pass          lookup_ticket
+  t11-close-missing-ticket     run2 pass          lookup_ticket
+  t11-close-missing-ticket     run3 pass          lookup_ticket
+  t12-direct-close-missing     run1 pass          lookup_ticket
+  t12-direct-close-missing     run2 pass          lookup_ticket
+  t12-direct-close-missing     run3 pass          lookup_ticket
+
+variant=fixed model=deepseek runs=3
+{"total": 36, "passed": 36, "failed": 0, "undetermined": 0, "pass_rate": 100.0, "undetermined_rate": 0.0, "ghost_calls": 0}
+===== compare =====
+## 总览
+
+| 版本 | 通过率 | 未判定率 | 通过 | 失败 | 未判定 | 假成功 |
+|---|---|---|---|---|---|---|
+| baseline_deepseek | 100.0% | 0.0% | 36 | 0 | 0 | 0 |
+| fixed_deepseek | 100.0% | 0.0% | 36 | 0 | 0 | 0 |
+
+## 逐用例
+
+| 用例 | baseline_deepseek | fixed_deepseek |
+|---|---|---|
+| t01-ticket-then-customer | pass | pass |
+| t02-list-by-date | pass | pass |
+| t03-close-then-notify | pass | pass |
+| t04-export-report | pass | pass |
+| t05-missing-ticket | pass | pass |
+| t06-bad-date | pass | pass |
+| t07-customer-tickets | pass | pass |
+| t08-ticket-detail | pass | pass |
+| t09-customer-plan | pass | pass |
+| t10-missing-report | pass | pass |
+| t11-close-missing-ticket | pass | pass |
+| t12-direct-close-missing | pass | pass |

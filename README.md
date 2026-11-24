@@ -235,6 +235,15 @@ pip install -r requirements-dev.txt  # 接入依赖 + 测试工具（langchain-c
 装了就真用框架，没装则退化成同名接口（`LANGCHAIN_AVAILABLE` / `AGENTEVALS_AVAILABLE` / `ADK_AVAILABLE`
 会告诉你当前状态），所以核心判定在任何环境下都能跑。
 
+## Case study
+
+[`case-studies/langgraph-react/`](case-studies/langgraph-react/)：用 LangGraph 官方 ReAct agent 跑 12 条任务，
+只换工具层的返回格式（空串 vs 结构化 `ok/error`），比较两版的轨迹与答复。
+
+结论：**轨迹通过率两版都是 100%，但答复错误率从 11.1% 降到 0**——
+工具契约的收益在这里体现在答复质量，而**调用序列完全测不出这个差异**。
+这条结论本身就是本项目的边界说明。
+
 ## 开发
 
 ```bash

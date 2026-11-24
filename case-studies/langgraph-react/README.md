@@ -66,9 +66,18 @@ TRACEEVAL_MODEL=fake python run.py --variant baseline --limit 1
 | 假成功 | 发出了 tool_call 但没有对应的 tool_result |
 | 重复调用 | 同一工具在一条轨迹里被调多次 |
 
-## 结果
+## 结果（摘要）
 
-见 [`RESULTS.md`](RESULTS.md)（真模型跑完填入）。
+DeepSeek，12 条任务 × 3 轮：
+
+| 指标 | baseline | fixed |
+|---|---|---|
+| 轨迹通过率 | 100.0% | 100.0% |
+| 答复错误 | 4 / 36（11.1%） | 0 / 36 |
+| 副作用违规 | 0 | 0 |
+
+**轨迹一模一样，答复差了 11 个百分点**。完整分析（含实验设计被评测器抓出的三个坑）见
+[`RESULTS.md`](RESULTS.md)。
 
 ## 边界（别把它读成"模型变强了"）
 

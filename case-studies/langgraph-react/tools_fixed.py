@@ -11,7 +11,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from data import CUSTOMERS, REPORTS, TICKETS, is_valid_date, tickets_of_customer, tickets_on
+from data import (
+    CUSTOMERS,
+    NOTIFICATIONS,
+    REPORTS,
+    TICKETS,
+    is_valid_date,
+    tickets_of_customer,
+    tickets_on,
+)
 from langchain_core.tools import tool
 
 
@@ -95,6 +103,7 @@ def notify_customer(ticket_id: int, message: str) -> dict:
         return _error("ticket_not_found", f"没有工单 {ticket_id}")
     if not str(message).strip():
         return _error("empty_message", "通知内容为空", hint="请提供要发送的正文")
+    NOTIFICATIONS.append({"ticket_id": int(ticket_id), "message": str(message)})
     return _ok(ticket_id=ticket_id, sent=True)
 
 

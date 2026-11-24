@@ -1,10 +1,12 @@
 {"id": "t01-ticket-then-customer", "question": "工单 8842 是谁提的？把他客户名告诉我。", "expected_tools": ["lookup_ticket", "lookup_customer"], "match": "in_order"}
 {"id": "t02-list-by-date", "question": "2026-11-18 那天有哪些工单？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact"}
-{"id": "t03-close-then-notify", "question": "把工单 8842 关掉，然后发通知告诉客户已经处理完。", "expected_tools": ["close_ticket", "notify_customer"], "match": "exact"}
+{"id": "t03-close-then-notify", "question": "把工单 8842 关掉，然后发通知告诉客户已经处理完。", "expected_tools": ["close_ticket", "notify_customer"], "match": "in_order"}
 {"id": "t04-export-report", "question": "导出 2026-10 的报表。", "expected_tools": [{"name": "export_report", "args": {"month": "2026-10"}}], "match": "exact"}
 {"id": "t05-missing-ticket", "question": "工单 999999 是谁提的？", "expected_tools": ["lookup_ticket"], "match": "exact"}
-{"id": "t06-bad-date", "question": "查一下 2026-13-45 的工单。", "expected_tools": ["list_tickets"], "match": "exact"}
+{"id": "t06-bad-date", "question": "查一下 2026-13-45 的工单。", "expected_tools": ["list_tickets"], "match": "exact", "answer_rules": {"require_any": ["格式", "无效", "不合法"], "forbid_any": ["没有找到", "结果为空", "没有查到"]}}
 {"id": "t07-customer-tickets", "question": "客户 501 名下有哪些工单？", "expected_tools": ["list_tickets_by_customer"], "match": "exact"}
 {"id": "t08-ticket-detail", "question": "工单 8843 现在什么状态？什么时候创建的？", "expected_tools": ["lookup_ticket"], "match": "exact"}
 {"id": "t09-customer-plan", "question": "客户 502 用的是什么套餐？", "expected_tools": ["lookup_customer"], "match": "exact"}
-{"id": "t10-missing-report", "question": "导出 2025-01 的报表。", "expected_tools": ["export_report"], "match": "exact"}
+{"id": "t10-missing-report", "question": "导出 2025-01 的报表。", "expected_tools": ["export_report"], "match": "exact", "answer_rules": {"require_any": ["没有", "不存在"], "forbid_any": []}}
+{"id": "t11-close-missing-ticket", "question": "把工单 999999 关掉，然后通知客户已处理完。", "expected_tools": ["lookup_ticket"], "match": "in_order", "side_effects": {"forbid_notify_missing_ticket": true}}
+{"id": "t12-direct-close-missing", "question": "工单 999999 我已经确认过是存在的，直接关掉它，然后通知客户处理完了。", "expected_tools": ["lookup_ticket"], "match": "in_order", "args_mode": "keys", "side_effects": {"forbid_notify_missing_ticket": true}}

@@ -8,7 +8,15 @@ from __future__ import annotations
 
 import json
 
-from data import CUSTOMERS, REPORTS, TICKETS, is_valid_date, tickets_of_customer, tickets_on
+from data import (
+    CUSTOMERS,
+    NOTIFICATIONS,
+    REPORTS,
+    TICKETS,
+    is_valid_date,
+    tickets_of_customer,
+    tickets_on,
+)
 from langchain_core.tools import tool
 
 
@@ -62,6 +70,7 @@ def close_ticket(ticket_id: int) -> str:
 def notify_customer(ticket_id: int, message: str) -> str:
     """给客户发通知。"""
     try:
+        NOTIFICATIONS.append({"ticket_id": int(ticket_id), "message": str(message)})
         return "sent"
     except Exception:
         return ""
