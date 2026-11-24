@@ -155,7 +155,7 @@ python -m traceeval run --suite s.jsonl --traces t.jsonl --fail-under 90 # 通�
 ## 开发
 
 ```bash
-python -m pytest -q          # 40+ 条用例
+python -m pytest -q          # 53 条用例
 ruff check .
 ```
 
