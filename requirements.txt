@@ -1,0 +1,5 @@
+# 接入依赖：装了这两样，LangChain / LangGraph / ADK 的接入就能直接用。
+# 核心判定逻辑（trajectory / metrics / report / suite / cli）本身不依赖任何框架，
+# 只测 OpenAI / Anthropic 的消息格式时可以不装。
+langchain-core>=0.3
+google-adk>=1.0

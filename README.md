@@ -7,12 +7,16 @@
 可归因、可复现的调用序列。
 
 ```bash
-pip install -e .
+git clone https://github.com/Perilla000leaves/traceeval.git && cd traceeval
+
+# 一条命令装齐（接入依赖 + 测试工具）
+pip install -r requirements-dev.txt && pip install -e .
+
 python -m traceeval run --suite suites/support_agent.jsonl --traces suites/support_agent.baseline.jsonl
+python examples/langchain_tool.py          # 真实 LangChain 工具跑一遍
 ```
 
-**运行时零依赖**：`pip install traceeval` 不会给你装 LangChain / ADK / OpenAI SDK。
-接入层用鸭子类型实现，框架是你自己的，评测器不掺和。
+只关心调用序列判定、不接框架时，`pip install -e .` 就够了 —— 核心模块不 import 任何框架。
 
 内置一份 7 条的示例集与录好的轨迹，**不需要任何 API key** 就能跑出完整报告。
 
