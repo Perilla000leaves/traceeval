@@ -51,7 +51,9 @@ python -m traceeval run --suite suites/support_agent.jsonl --traces suites/suppo
 
 | 你的栈 | 怎么接 | 用哪个 |
 |---|---|---|
-| LangChain / LangGraph | 回调处理器（鸭子类型，不强制安装） | `TraceCallbackHandler` |
+| LangChain | 回调处理器（鸭子类型，不强制安装） | `TraceCallbackHandler` |
+| LangGraph | **同一个回调处理器**（LangGraph 复用 LangChain 回调协议） | `TraceCallbackHandler` |
+| Google ADK | `before_tool_callback` / `after_tool_callback` / `on_tool_error_callback` | `AdkTraceRecorder` |
 | OpenAI SDK | `assistant.tool_calls` + `role="tool"` | `format: "openai"` |
 | Anthropic | `tool_use` / `tool_result` 内容块 | `format: "anthropic"` |
 | OpenTelemetry（Phoenix / Langfuse / LangSmith 都能导出） | GenAI 语义约定 | `trajectory_from_otel_spans` |
@@ -72,6 +74,44 @@ print(result.status, result.reasons)
 
 **为什么不继承 `BaseCallbackHandler`**：LangChain 只按方法名回调，继承只会带来看不见的版本耦合。
 鸭子类型的好处是——装上 traceeval 不改变你的依赖树，LangChain 大版本升级也不会让它挂。
+
+LangGraph 复用同一套回调协议（会额外传 `parent_run_id` / `tags` / `metadata`），
+所以 `TraceCallbackHandler` 一行都不用改。
+
+### Google ADK
+
+```python
+from traceeval import AdkTraceRecorder, score
+
+recorder = AdkTraceRecorder()
+agent = LlmAgent(
+    ...,
+    before_tool_callback=recorder.before_tool_callback,
+    after_tool_callback=recorder.after_tool_callback,
+    on_tool_error_callback=recorder.on_tool_error_callback,
+)
+await runner.run_async(...)
+
+print(score("case-1", ["lookup_ticket"], recorder.trajectory()).status)
+```
+
+两个细节：回调**必须返回 `None`**（ADK 里返回 dict 会短路并当工具结果用）；
+ADK 的回调签名没有每次调用的唯一 id，录制器按工具名 FIFO 配对——单个 agent 内工具顺序执行时成立，
+并发场景请改用 `trajectory_from_adk_events` 读事件流（事件里带 id）。
+
+### 三个框架一次对照
+
+`examples/three_frameworks.py` 用同一份期望评三条来源不同的轨迹：
+
+```
+框架                    结果            原因
+LangChain             pass          -
+LangGraph             pass          -
+ADK（第二个工具中断）    fail          假成功：1 个调用没有返回（lookup_customer）
+```
+
+前两行说明「换框架不影响判定」，第三行说明「中断的工具调用会被抓到」——这正是本项目的意义：
+**评测口径不随框架变，但框架层的问题跑不掉。**
 
 ### OpenTelemetry
 
@@ -155,7 +195,7 @@ python -m traceeval run --suite s.jsonl --traces t.jsonl --fail-under 90 # 通�
 ## 开发
 
 ```bash
-python -m pytest -q          # 53 条用例
+python -m pytest -q          # 64 条用例
 ruff check .
 ```
 

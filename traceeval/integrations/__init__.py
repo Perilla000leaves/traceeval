@@ -16,8 +16,14 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from ..trajectory import Call, Status, Trajectory
+from .adk import AdkTraceRecorder, trajectory_from_adk_events
 
-__all__ = ["TraceCallbackHandler", "trajectory_from_otel_spans"]
+__all__ = [
+    "AdkTraceRecorder",
+    "TraceCallbackHandler",
+    "trajectory_from_adk_events",
+    "trajectory_from_otel_spans",
+]
 
 
 class TraceCallbackHandler:

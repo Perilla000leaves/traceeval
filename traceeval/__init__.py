@@ -13,7 +13,12 @@
 """
 
 from .adapters import ADAPTERS, parse
-from .integrations import TraceCallbackHandler, trajectory_from_otel_spans
+from .integrations import (
+    AdkTraceRecorder,
+    TraceCallbackHandler,
+    trajectory_from_adk_events,
+    trajectory_from_otel_spans,
+)
 from .metrics import CaseResult, score, score_many
 from .report import summarize, to_dicts, to_markdown
 from .suite import Case, load_cases, load_traces, run
@@ -35,6 +40,7 @@ __version__ = "0.1.0"
 __all__ = [
     "ADAPTERS",
     "ANY_VALUE",
+    "AdkTraceRecorder",
     "Call",
     "Case",
     "CaseResult",
@@ -58,5 +64,6 @@ __all__ = [
     "summarize",
     "to_dicts",
     "to_markdown",
+    "trajectory_from_adk_events",
     "trajectory_from_otel_spans",
 ]
