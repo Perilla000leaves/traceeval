@@ -13,9 +13,11 @@
 """
 
 from .adapters import ADAPTERS, parse
+from .integrations import TraceCallbackHandler, trajectory_from_otel_spans
 from .metrics import CaseResult, score, score_many
 from .report import summarize, to_dicts, to_markdown
 from .suite import Case, load_cases, load_traces, run
+from .testing import TrajectoryAssertionError, assert_tools
 from .trajectory import (
     ANY_VALUE,
     Call,
@@ -38,9 +40,12 @@ __all__ = [
     "CaseResult",
     "ExpectedCall",
     "Status",
+    "TraceCallbackHandler",
     "Trajectory",
+    "TrajectoryAssertionError",
     "__version__",
     "as_expected",
+    "assert_tools",
     "duplicates",
     "load_cases",
     "load_traces",
@@ -53,4 +58,5 @@ __all__ = [
     "summarize",
     "to_dicts",
     "to_markdown",
+    "trajectory_from_otel_spans",
 ]

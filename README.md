@@ -45,6 +45,56 @@ python -m traceeval run --suite suites/support_agent.jsonl --traces suites/suppo
 后者是某次运行录下来的真实序列。**拿别人的轨迹集重新打分不需要模型、不需要联网**，
 这是能做公开基线比较的前提。
 
+## 接入你的框架
+
+评测器有没有用，取决于能不能接进你现在这套代码。**判定内核零依赖，接入层每个框架一个薄适配器**：
+
+| 你的栈 | 怎么接 | 用哪个 |
+|---|---|---|
+| LangChain / LangGraph | 回调处理器（鸭子类型，不强制安装） | `TraceCallbackHandler` |
+| OpenAI SDK | `assistant.tool_calls` + `role="tool"` | `format: "openai"` |
+| Anthropic | `tool_use` / `tool_result` 内容块 | `format: "anthropic"` |
+| OpenTelemetry（Phoenix / Langfuse / LangSmith 都能导出） | GenAI 语义约定 | `trajectory_from_otel_spans` |
+| MCP / 自建 runtime | `tool_call` / `tool_result` 事件流 | `format: "events"` |
+| pytest 单测 | 断言助手 | `assert_tools(...)` |
+
+### LangChain / LangGraph
+
+```python
+from traceeval import TraceCallbackHandler, score
+
+handler = TraceCallbackHandler()
+agent.invoke({"question": "查一下这个工单"}, config={"callbacks": [handler]})
+
+result = score("case-1", ["lookup_ticket", "lookup_customer"], handler.trajectory(), match="in_order")
+print(result.status, result.reasons)
+```
+
+**为什么不继承 `BaseCallbackHandler`**：LangChain 只按方法名回调，继承只会带来看不见的版本耦合。
+鸭子类型的好处是——装上 traceeval 不改变你的依赖树，LangChain 大版本升级也不会让它挂。
+
+### OpenTelemetry
+
+```python
+from traceeval import trajectory_from_otel_spans
+
+trajectory = trajectory_from_otel_spans(spans)   # 读 gen_ai.tool.name / call.id / call.arguments
+```
+
+接 OTel 等于接所有能导出 OTel 的追踪后端，不用为每个厂商写一遍。
+
+### 在单测里断言
+
+```python
+from traceeval.testing import assert_tools
+
+def test_agent_calls_lookup_before_customer():
+    result = run_agent("查一下这个工单的客户")
+    assert_tools(result.trajectory(), ["lookup_ticket", "lookup_customer"], match="in_order")
+```
+
+断言失败时直接报出「期望 / 实际 / 原因」，**假成功也会被抓到**——这是手写 `assert tools == [...]` 做不到的。
+
 ## 能测什么
 
 | 维度 | 怎么判 |
@@ -88,7 +138,8 @@ python -m traceeval run --suite s.jsonl --traces t.jsonl --fail-under 90 # 通�
 
 - **不跑模型**。输入是录好的轨迹，评测器不负责生成。想测自己的模型，按上面的格式录一份 traces 即可。
 - **不判语义正确性**。参数「对不对」只按你声明的期望比，不判断回答内容是否合理——那是另一类评测。
-- **不绑框架**。没有 LangChain / ADK / OpenAI 依赖；适配只发生在读入轨迹那一步。
+- **不绑框架**但有接入层。核心判定不 import 任何框架（装上 traceeval 不改变你的依赖树），
+  LangChain / OpenAI / Anthropic / OTel / MCP 各有薄适配器，见上文「接入你的框架」。
 - **不含延迟与成本归因**。报告会带上轨迹里记录的 `latency_ms` / `cost_usd` 的 P50/P95 与总和，
   但不会去推算「为什么慢」。
 
