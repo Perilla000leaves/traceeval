@@ -1,12 +1,48 @@
-{"id": "t01-ticket-then-customer", "question": "工单 8842 是谁提的？把他客户名告诉我。", "expected_tools": ["lookup_ticket", "lookup_customer"], "match": "in_order"}
-{"id": "t02-list-by-date", "question": "2026-11-18 那天有哪些工单？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact"}
-{"id": "t03-close-then-notify", "question": "把工单 8842 关掉，然后发通知告诉客户已经处理完。", "expected_tools": ["close_ticket", "notify_customer"], "match": "in_order"}
-{"id": "t04-export-report", "question": "导出 2026-10 的报表。", "expected_tools": [{"name": "export_report", "args": {"month": "2026-10"}}], "match": "exact"}
-{"id": "t05-missing-ticket", "question": "工单 999999 是谁提的？", "expected_tools": ["lookup_ticket"], "match": "exact"}
-{"id": "t06-bad-date", "question": "查一下 2026-13-45 的工单。", "expected_tools": ["list_tickets"], "match": "exact", "answer_rules": {"require_any": ["格式", "无效", "不合法"], "forbid_any": ["没有找到", "结果为空", "没有查到"]}}
-{"id": "t07-customer-tickets", "question": "客户 501 名下有哪些工单？", "expected_tools": ["list_tickets_by_customer"], "match": "exact"}
-{"id": "t08-ticket-detail", "question": "工单 8843 现在什么状态？什么时候创建的？", "expected_tools": ["lookup_ticket"], "match": "exact"}
-{"id": "t09-customer-plan", "question": "客户 502 用的是什么套餐？", "expected_tools": ["lookup_customer"], "match": "exact"}
-{"id": "t10-missing-report", "question": "导出 2025-01 的报表。", "expected_tools": ["export_report"], "match": "exact", "answer_rules": {"require_any": ["没有", "不存在"], "forbid_any": []}}
-{"id": "t11-close-missing-ticket", "question": "把工单 999999 关掉，然后通知客户已处理完。", "expected_tools": ["lookup_ticket"], "match": "in_order", "side_effects": {"forbid_notify_missing_ticket": true}}
-{"id": "t12-direct-close-missing", "question": "工单 999999 我已经确认过是存在的，直接关掉它，然后通知客户处理完了。", "expected_tools": ["lookup_ticket"], "match": "in_order", "args_mode": "keys", "side_effects": {"forbid_notify_missing_ticket": true}}
+{"id": "h01-ticket-customer", "question": "工单 8842 是谁提的？", "expected_tools": ["lookup_ticket", "lookup_customer"], "match": "in_order", "category": "happy"}
+{"id": "h02-ticket-status", "question": "工单 8842 现在什么状态？", "expected_tools": ["lookup_ticket"], "match": "exact", "category": "happy"}
+{"id": "h03-ticket-subject", "question": "工单 8844 的主题是什么？", "expected_tools": ["lookup_ticket"], "match": "exact", "category": "happy"}
+{"id": "h04-tickets-1118", "question": "2026-11-18 那天有哪些工单？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h05-tickets-1117", "question": "2026-11-17 那天有哪些工单？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-17"}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h06-customer-tickets", "question": "客户 501 名下有哪些工单？", "expected_tools": [{"name": "list_tickets_by_customer", "args": {"customer_id": 501}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h07-customer-plan", "question": "客户 502 用的是什么套餐？", "expected_tools": [{"name": "lookup_customer", "args": {"customer_id": 502}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h08-ticket-then-plan", "question": "工单 8843 的客户用的是什么套餐？", "expected_tools": ["lookup_ticket", "lookup_customer"], "match": "in_order", "category": "happy"}
+{"id": "h09-report-11", "question": "导出 2026-11 的报表。", "expected_tools": [{"name": "export_report", "args": {"month": "2026-11"}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h10-report-10", "question": "导出 2026-10 的报表。", "expected_tools": [{"name": "export_report", "args": {"month": "2026-10"}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h11-customer-501-plan", "question": "客户 501 用的是什么套餐？", "expected_tools": [{"name": "lookup_customer", "args": {"customer_id": 501}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "h12-pending-1118", "question": "2026-11-18 的工单里有没有待处理的？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact", "args_mode": "full", "category": "happy"}
+{"id": "a01-date-iso", "question": "查一下 2026-11-18 的工单。", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a02-date-cn", "question": "查一下 11 月 18 日的工单。", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a03-date-other", "question": "查一下 2026-11-17 的工单。", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-17"}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a04-month", "question": "导出 2026-10 月份的数据。", "expected_tools": [{"name": "export_report", "args": {"month": "2026-10"}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a05-id-number", "question": "工单 8842 的详情。", "expected_tools": [{"name": "lookup_ticket", "args": {"ticket_id": 8842}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a06-id-customer", "question": "查一下客户 501。", "expected_tools": [{"name": "lookup_customer", "args": {"customer_id": 501}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a07-date-full-cn", "question": "2026 年 11 月 18 日有哪些工单？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-11-18"}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "a08-close-notify", "question": "关闭工单 8843，然后通知客户已处理。", "expected_tools": ["close_ticket", "notify_customer"], "match": "in_order", "category": "args", "side_effects": {"expect_closed": [8843], "expect_notified": [8843]}}
+{"id": "a09-notify-after-close", "question": "工单 8843 我已经和客户确认过、也处理完了，直接关掉并通知客户问题解决了。", "expected_tools": ["close_ticket", "notify_customer"], "match": "in_order", "category": "args", "side_effects": {"expect_closed": [8843], "expect_notified": [8843]}}
+{"id": "a10-customer-502-tickets", "question": "客户 502 名下的工单有哪些？", "expected_tools": [{"name": "list_tickets_by_customer", "args": {"customer_id": 502}}], "match": "exact", "args_mode": "full", "category": "args"}
+{"id": "e01-missing-ticket", "question": "工单 999999 是谁提的？", "expected_tools": [{"name": "lookup_ticket", "args": {"ticket_id": 999999}}], "match": "exact", "args_mode": "full", "category": "error", "answer_rules": {"require_any": ["不存在", "查不到", "没有"]}}
+{"id": "e02-bad-date", "question": "查一下 2026-13-45 的工单。", "expected_tools": ["list_tickets"], "match": "exact", "category": "error", "answer_rules": {"require_any": ["格式", "无效", "不合法"], "forbid_any": ["没有找到", "没有查到", "结果为空"]}}
+{"id": "e03-missing-report", "question": "导出 2025-01 的报表。", "expected_tools": [{"name": "export_report", "args": {"month": "2025-01"}}], "match": "exact", "args_mode": "full", "category": "error", "answer_rules": {"require_any": ["没有", "不存在"]}}
+{"id": "e04-missing-customer", "question": "客户 999 的套餐是什么？", "expected_tools": [{"name": "lookup_customer", "args": {"customer_id": 999}}], "match": "exact", "args_mode": "full", "category": "error", "answer_rules": {"require_any": ["不存在", "查不到", "没有"]}}
+{"id": "e05-empty-notify", "question": "给工单 8842 的客户发一条空通知。", "expected_tools": [], "match": "exact", "category": "error", "answer_rules": {"require_any": ["内容", "空"]}, "forbid_tools": ["notify_customer"]}
+{"id": "e06-close-closed", "question": "工单 8842 现在关闭了吗？如果已经关闭就不用再关。", "expected_tools": ["lookup_ticket"], "match": "in_order", "category": "error", "answer_rules": {"require_any": ["没有关闭", "未关闭", "open", "还没"]}}
+{"id": "e07-missing-customer-tickets", "question": "客户 999 名下有哪些工单？", "expected_tools": [{"name": "list_tickets_by_customer", "args": {"customer_id": 999}}], "match": "exact", "args_mode": "full", "category": "error", "answer_rules": {"require_any": ["不存在", "查不到", "没有"]}}
+{"id": "e08-empty-day", "question": "2026-12-01 那天有哪些工单？", "expected_tools": [{"name": "list_tickets", "args": {"date": "2026-12-01"}}], "match": "exact", "args_mode": "full", "category": "error", "answer_rules": {"require_any": ["没有", "0", "零"]}}
+{"id": "e09-zero-ticket", "question": "工单 0 是谁提的？", "expected_tools": [{"name": "lookup_ticket", "args": {"ticket_id": 0}}], "match": "exact", "args_mode": "full", "category": "error", "answer_rules": {"require_any": ["不存在", "查不到", "没有"]}}
+{"id": "e10-bad-month", "question": "导出 2026-13 的报表。", "expected_tools": ["export_report"], "match": "exact", "category": "error", "answer_rules": {"require_any": ["没有", "无效", "不存在"]}}
+{"id": "n01-hours", "question": "你们几点上班？", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n02-thanks", "question": "谢谢，辛苦了。", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n03-who", "question": "你是谁？", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n04-poem", "question": "帮我写一首关于春天的诗。", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n05-weather", "question": "今天天气怎么样？", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n06-hello", "question": "在吗？", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n07-capability", "question": "你都能做什么？", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "n08-math", "question": "1+1 等于几？", "expected_tools": [], "match": "exact", "expect_no_calls": true, "category": "no_tool"}
+{"id": "w01-close-and-notify", "question": "把工单 8842 关掉，然后通知客户已经处理完。", "expected_tools": ["close_ticket", "notify_customer"], "match": "in_order", "category": "write", "side_effects": {"expect_closed": [8842], "expect_notified": [8842]}}
+{"id": "w02-close-missing", "question": "把工单 999999 关掉，然后通知客户已处理完。", "expected_tools": ["lookup_ticket"], "match": "in_order", "category": "write", "side_effects": {"forbid_notify_missing_ticket": true}}
+{"id": "w03-notify-only", "question": "给工单 8843 的客户发通知，说我们已收到他的问题。", "expected_tools": ["notify_customer"], "match": "in_order", "category": "write", "side_effects": {"expect_notified": [8843]}}
+{"id": "w04-close-only", "question": "关闭工单 8843。", "expected_tools": ["close_ticket"], "match": "in_order", "category": "write", "side_effects": {"expect_closed": [8843]}}
+{"id": "w05-close-two", "question": "关闭 8842 并通知客户，再关闭 8843 并通知客户。", "expected_tools": ["close_ticket", "notify_customer"], "match": "in_order", "category": "write", "allow_duplicates": true, "side_effects": {"expect_closed": [8842, 8843]}}
+{"id": "w06-confirm-closed", "question": "工单 8844 是不是已经关闭了？", "expected_tools": ["lookup_ticket"], "match": "in_order", "category": "write", "answer_rules": {"require_any": ["已关闭", "closed"]}}
+{"id": "m01-two-tickets", "question": "8842 和 8843 分别是哪个客户提的？", "expected_tools": ["lookup_ticket"], "match": "in_order", "category": "multi", "allow_duplicates": true}
+{"id": "m02-two-customers", "question": "客户 501 和客户 502 分别有几个工单？", "expected_tools": ["list_tickets_by_customer"], "match": "in_order", "category": "multi", "allow_duplicates": true}

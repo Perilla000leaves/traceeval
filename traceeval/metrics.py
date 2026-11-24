@@ -31,6 +31,8 @@ REASON_MISSING = "missing_tool"
 REASON_ORDER = "order_mismatch"
 REASON_ARGS = "args_mismatch"
 REASON_DUPLICATE = "duplicate_call"
+REASON_OVER_CALL = "over_call"
+REASON_FORBIDDEN = "forbidden_tool"
 REASON_ERROR = "run_error"
 
 
@@ -90,6 +92,8 @@ def score(
     args_mode: str = "keys",
     require_results: bool = True,
     fail_on_duplicates: bool = True,
+    expect_no_calls: bool = False,
+    forbid_tools: Sequence[str] = (),
     error: str = "",
 ) -> CaseResult:
     """给一条用例打分。
@@ -115,6 +119,40 @@ def score(
             reasons=[f"运行报错：{error[:120]}"],
             codes=[REASON_ERROR],
             metrics=metrics,
+        )
+
+    forbidden = [call.name for call in calls if call.name in set(forbid_tools)]
+    if forbidden:
+        return CaseResult(
+            case_id=case_id,
+            status=Status.FAIL,
+            reasons=[f"调用了被禁止的工具：{', '.join(sorted(set(forbidden)))}"],
+            codes=[REASON_FORBIDDEN],
+            metrics={**metrics, "forbidden": sorted(set(forbidden))},
+        )
+
+    if not expected and forbid_tools:
+        # 空期望 + 只禁止特定工具：没调到禁用工具就算通过（例如"别发空通知"）
+        return CaseResult(
+            case_id=case_id,
+            status=Status.PASS,
+            metrics={**metrics, "forbidden": []},
+        )
+
+    if not expected and expect_no_calls:
+        # 显式声明「这条不该调用任何工具」：调用越界即失败（过度调用是最常见的隐性缺陷）
+        if not calls:
+            return CaseResult(
+                case_id=case_id,
+                status=Status.PASS,
+                metrics={**metrics, "unexpected_calls": []},
+            )
+        return CaseResult(
+            case_id=case_id,
+            status=Status.FAIL,
+            reasons=[f"不该调用工具，实际调用了 {len(calls)} 次（{', '.join(names)}）"],
+            codes=[REASON_OVER_CALL],
+            metrics={**metrics, "unexpected_calls": names},
         )
 
     if not expected:
@@ -184,8 +222,10 @@ __all__ = [
     "REASON_ARGS",
     "REASON_DUPLICATE",
     "REASON_ERROR",
+    "REASON_FORBIDDEN",
     "REASON_GHOST",
     "REASON_MISSING",
+    "REASON_OVER_CALL",
     "REASON_ORDER",
     "CaseResult",
     "score",

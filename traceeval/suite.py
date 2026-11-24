@@ -36,6 +36,10 @@ class CaseRow(BaseModel):
     question: str = ""
     match: str | None = None
     args_mode: str | None = None
+    expect_no_calls: bool = False
+    forbid_tools: list[str] = Field(default_factory=list)
+    allow_duplicates: bool = False
+    category: str = ""
     tags: list[str] = Field(default_factory=list)
 
     @field_validator("id")
@@ -90,6 +94,10 @@ class Case:
     question: str = ""
     match: str | None = None
     args_mode: str | None = None
+    expect_no_calls: bool = False
+    forbid_tools: list[str] = field(default_factory=list)
+    allow_duplicates: bool = False
+    category: str = ""
     tags: list[str] = field(default_factory=list)
 
 
@@ -115,6 +123,10 @@ def load_cases(path: str | Path) -> list[Case]:
                 question=parsed.question,
                 match=parsed.match,
                 args_mode=parsed.args_mode,
+                expect_no_calls=parsed.expect_no_calls,
+                forbid_tools=list(parsed.forbid_tools),
+                allow_duplicates=parsed.allow_duplicates,
+                category=parsed.category,
                 tags=list(parsed.tags),
             )
         )
@@ -166,7 +178,9 @@ def run(
                 match=case.match or match,
                 args_mode=case.args_mode or args_mode,
                 require_results=require_results,
-                fail_on_duplicates=fail_on_duplicates,
+                fail_on_duplicates=fail_on_duplicates and not case.allow_duplicates,
+                expect_no_calls=case.expect_no_calls,
+                forbid_tools=case.forbid_tools,
             )
         )
     return results

@@ -13,6 +13,7 @@
 """
 
 from .adapters import ADAPTERS, parse
+from .diagnose import CaseDiagnosis, compare, diagnose, summary_by_code
 from .integrations import (
     ADK_AVAILABLE,
     AGENTEVALS_AVAILABLE,
@@ -50,6 +51,7 @@ __all__ = [
     "AdkTraceRecorder",
     "Call",
     "Case",
+    "CaseDiagnosis",
     "CaseResult",
     "ExpectedCall",
     "Status",
@@ -59,6 +61,8 @@ __all__ = [
     "__version__",
     "as_expected",
     "assert_tools",
+    "compare",
+    "diagnose",
     "duplicates",
     "evaluate_trajectory",
     "load_cases",
@@ -70,6 +74,7 @@ __all__ = [
     "score",
     "score_many",
     "summarize",
+    "summary_by_code",
     "to_dicts",
     "to_markdown",
     "trajectory_from_adk_events",

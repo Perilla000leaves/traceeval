@@ -30,6 +30,9 @@ from agent import build_agent, load_api_key  # noqa: E402
 from data import TICKETS, reset, snapshot  # noqa: E402
 
 from traceeval import TraceCallbackHandler, report, score  # noqa: E402
+from traceeval.diagnose import diagnose, summary_by_code  # noqa: E402
+from traceeval.diagnose import to_json as diagnose_json  # noqa: E402
+from traceeval.diagnose import to_markdown as diagnose_md  # noqa: E402
 from traceeval.trajectory import Trajectory  # noqa: E402
 
 OUT = HERE / "out"
@@ -67,6 +70,12 @@ def run_once(agent: Any, question: str) -> tuple[Trajectory, str, str]:
 def check_side_effects(task: dict[str, Any], snap: dict[str, Any]) -> tuple[bool, str]:
     """检查"到底做成了没有"，而不是听模型说自己做成了。"""
     rule = task.get("side_effects") or {}
+    missing_closed = [tid for tid in (rule.get("expect_closed") or []) if tid not in snap["closed"]]
+    if missing_closed:
+        return False, f"应该关闭但没有关闭：{missing_closed}"
+    missing_notified = [tid for tid in (rule.get("expect_notified") or []) if tid not in snap["notified"]]
+    if missing_notified:
+        return False, f"应该通知但没有通知：{missing_notified}"
     if rule.get("forbid_notify_missing_ticket"):
         bad = [tid for tid in snap["notified"] if tid not in TICKETS]
         if bad:
@@ -92,7 +101,7 @@ def check_answer(task: dict[str, Any], final: str) -> tuple[bool, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="LangGraph ReAct case study")
-    parser.add_argument("--variant", choices=("baseline", "fixed"), required=True)
+    parser.add_argument("--variant", choices=("baseline", "fixed", "improved"), required=True)
     parser.add_argument("--tasks", default=str(HERE / "tasks.jsonl"))
     parser.add_argument("--runs", type=int, default=1, help="每个任务重复跑几次")
     parser.add_argument("--limit", type=int, default=0, help="只跑前 N 条（调试用）")
@@ -126,6 +135,10 @@ def main() -> int:
                 task["expected_tools"],
                 trajectory,
                 match=task.get("match") or "any_order",
+                args_mode=task.get("args_mode") or "keys",
+                expect_no_calls=bool(task.get("expect_no_calls")),
+                forbid_tools=task.get("forbid_tools") or (),
+                fail_on_duplicates=not task.get("allow_duplicates", False),
             )
             if error and result.status.value != "fail":
                 result = score(task["id"], task["expected_tools"], trajectory, error=error)
@@ -175,6 +188,16 @@ def main() -> int:
     summary["side_effect_violations"] = len(violations)
     summary["side_effect_violation_ids"] = sorted({row["id"] for row in violations})
     answer_violations = [row for row in details if not row["answer_ok"]]
+    by_category: dict[str, dict[str, int]] = {}
+    for task, result in zip(
+        [task for task in tasks for _ in range(args.runs)], results, strict=False
+    ):
+        bucket = by_category.setdefault(
+            task.get("category") or "other", {"passed": 0, "failed": 0, "undetermined": 0}
+        )
+        key = {"pass": "passed", "fail": "failed"}.get(result.status.value, "undetermined")
+        bucket[key] += 1
+    summary["by_category"] = by_category
     summary["answer_violations"] = len(answer_violations)
     summary["answer_violation_ids"] = sorted({row["id"] for row in answer_violations})
 
@@ -192,10 +215,15 @@ def main() -> int:
         json.dumps(details, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (OUT / f"report_{tag}.md").write_text(report.to_markdown(results), encoding="utf-8")
+    diagnoses = diagnose(results)
+    (OUT / f"diagnosis_{tag}.json").write_text(diagnose_json(diagnoses), encoding="utf-8")
+    (OUT / f"diagnosis_{tag}.md").write_text(diagnose_md(diagnoses), encoding="utf-8")
 
     print()
     print(f"variant={args.variant} model={model_kind} runs={args.runs}")
     print(json.dumps({k: summary[k] for k in ("total", "passed", "failed", "undetermined", "pass_rate", "undetermined_rate", "ghost_calls")}, ensure_ascii=False))
+    print("按类别:", json.dumps(summary.get("by_category", {}), ensure_ascii=False))
+    print("失败码分布:", json.dumps(summary_by_code(results), ensure_ascii=False))
     return 0
 
 

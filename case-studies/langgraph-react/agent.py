@@ -72,8 +72,27 @@ def build_model() -> BaseChatModel:
     )
 
 
+#: improved：只针对诊断出的三条稳定失败做提示层修正，工具层与 fixed 相同
+PROMPT_IMPROVED = (
+    SYSTEM_PROMPT
+    + "\n今天是 2026-11-18。日期参数一律用 YYYY-MM-DD 传入；"
+    "用户只说「11 月 18 日」这类不带年份的说法时，补上今天的年份再传。"
+    "\n只有当用户既没说通知内容、也没有可推断的意图时，才向他索要正文；"
+    "像「通知客户已处理完」这种已经把意思说清的，直接把这句话当作正文发出，不要反问。"
+    "\n唯一例外：用户明确要求发送「空通知」或正文确实是空的，这时不要调用通知工具。"
+    "\n用户已经明确授权（例如「我已经确认过」「直接关掉」）时，不要再反问，按他说的执行。"
+)
+
+PROMPTS = {"baseline": SYSTEM_PROMPT, "fixed": SYSTEM_PROMPT, "improved": PROMPT_IMPROVED}
+TOOL_VARIANT = {"baseline": "baseline", "fixed": "fixed", "improved": "fixed"}
+
+
 def build_agent(variant: str, model: BaseChatModel | None = None):
-    return create_react_agent(model or build_model(), load_tools(variant), prompt=SYSTEM_PROMPT)
+    return create_react_agent(
+        model or build_model(),
+        load_tools(TOOL_VARIANT[variant]),
+        prompt=PROMPTS[variant],
+    )
 
 
 class ScriptedChatModel(BaseChatModel):

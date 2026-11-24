@@ -10,6 +10,7 @@ import json
 import sys
 from collections.abc import Sequence
 
+from . import diagnose as diagnose_mod
 from . import report, suite
 
 
@@ -45,6 +46,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--allow-duplicates",
         action="store_true",
         help="不把重复调用同一工具判成失败",
+    )
+    run_parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="附带归因诊断：区分稳定失败/偶发失败，并给出改动点",
     )
     run_parser.add_argument("--strict", action="store_true", help="有任何失败就以退出码 1 结束")
     run_parser.add_argument(
@@ -82,6 +88,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     else:
         print(report.to_markdown(results))
+        if args.diagnose:
+            print()
+            print(diagnose_mod.to_markdown(diagnose_mod.diagnose(results)))
 
     if args.strict and summary["failed"]:
         return 1
