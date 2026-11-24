@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "评测 tool-calling agent 的调用轨迹：假成功、未判定、参数漂移、重复调用"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["pydantic>=2"]
 keywords = ["agent", "evaluation", "llm", "tool-calling", "trajectory", "evals"]
 classifiers = [
   "Programming Language :: Python :: 3.11",

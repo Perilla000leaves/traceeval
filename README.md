@@ -16,7 +16,7 @@ python -m traceeval run --suite suites/support_agent.jsonl --traces suites/suppo
 python examples/langchain_tool.py          # 真实 LangChain 工具跑一遍
 ```
 
-只关心调用序列判定、不接框架时，`pip install -e .` 就够了 —— 核心模块不 import 任何框架。
+只关心调用序列判定、不接框架时，`pip install -e .` 就够了（核心只依赖 pydantic）。
 
 内置一份 7 条的示例集与录好的轨迹，**不需要任何 API key** 就能跑出完整报告。
 
@@ -204,25 +204,36 @@ python -m traceeval run --suite s.jsonl --traces t.jsonl --fail-under 90 # 通�
 如果你只是想知道「回复对不对」，这个项目帮不上忙；如果你在排查「agent 为什么行为不对」，
 它要的就是这份轨迹。
 
-## 依赖
+## 依赖与「不重复造轮子」
 
-**核心零依赖**（`dependencies = []`），**接入模块真依赖框架**——这是有意的分层：
+能交给框架的就交给框架，自己只写框架没有的那部分（假成功、未判定、报告）。
 
-| 模块 | 依赖 | 为什么 |
+| 功能 | 用谁的 | 说明 |
 |---|---|---|
-| `trajectory` / `metrics` / `report` / `suite` / `cli` | 无 | 判定逻辑与框架无关；测 OpenAI SDK 的人不该被迫装 LangChain |
-| `integrations.langchain` | `langchain-core`（`pip install traceeval[langchain]`） | **真继承 `BaseCallbackHandler`**，不是照着文档猜协议 |
-| `integrations.adk` | `google-adk`（`pip install traceeval[adk]`） | 用真实 `BaseTool` 做类型判断 |
-| 测试 | `pytest`（`[test]`） | — |
+| LangChain 回调捕获 | `langchain_core.callbacks.BaseCallbackHandler` | 真继承，不是照着文档猜协议 |
+| 轨迹/参数匹配（LangChain 侧） | `agentevals`（LangChain 官方） | `strict`/`unordered` + `exact`/`superset` 直接映射，不写第二套规则 |
+| ADK 事件解析 | `google.genai.types`（Content / Part / FunctionCall） | 接受真实对象，不自己解析 dict |
+| OTel span | `opentelemetry.sdk.trace.ReadableSpan` | 读 `.attributes` / `.status.status_code` |
+| 用例与轨迹校验 | `pydantic` | 声明式模型，报错自带字段路径 |
+| CLI | 标准库 `argparse` | 不引 click/typer |
+| 报告 | 纯字符串 markdown | 便于贴进 issue / PR |
+| `in_order` 子序列语义 | 本项目实现 | agentevals 没有这个模式，只有这一处自己写 |
 
-装了就真继承、没装就退化成同名接口（`LANGCHAIN_AVAILABLE` / `ADK_AVAILABLE` 会告诉你当前状态），
-所以核心测试在没有框架的环境里照样能跑——CI 的 `test` job 就是这种环境，
-`compat` job 则装上真实框架跑同一批接入测试。
+依赖分成两层：
 
-```python
-from traceeval.integrations import LANGCHAIN_AVAILABLE
-# True = 当前用的是真实 BaseCallbackHandler 子类
+```bash
+pip install -e .                     # 核心：pydantic + 标准库
+pip install -r requirements-dev.txt  # 接入依赖 + 测试工具（langchain-core / agentevals / google-adk / pytest / ruff）
 ```
+
+| 模块 | 依赖 |
+|---|---|
+| `trajectory` / `metrics` / `report` / `suite` / `cli` | `pydantic`（输入校验） |
+| `integrations.langchain` | `langchain-core`、`agentevals`（`pip install traceeval[langchain]`） |
+| `integrations.adk` | `google-adk`（`pip install traceeval[adk]`） |
+
+装了就真用框架，没装则退化成同名接口（`LANGCHAIN_AVAILABLE` / `AGENTEVALS_AVAILABLE` / `ADK_AVAILABLE`
+会告诉你当前状态），所以核心判定在任何环境下都能跑。
 
 ## 开发
 

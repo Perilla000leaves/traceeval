@@ -53,6 +53,13 @@ def _args_of(args: Any) -> dict[str, Any] | None:
     return None
 
 
+def _get(obj: Any, key: str) -> Any:
+    """同时支持 dict 形态（离线 jsonl）与 ADK 的真实对象形态（Event / Content / Part）。"""
+    if isinstance(obj, Mapping):
+        return obj.get(key)
+    return getattr(obj, key, None)
+
+
 def _ok(result: Any) -> bool:
     """工具返回是否算「拿到了结果」。ADK 的失败常常是返回一个空 dict。"""
     if result is None:
@@ -144,39 +151,37 @@ def trajectory_from_adk_events(events: Iterable[Mapping[str, Any]]) -> Trajector
     pending_by_name: dict[str, deque[int]] = defaultdict(deque)
 
     for event in events:
-        content = event.get("content") or {}
-        if not isinstance(content, Mapping):
+        content = _get(event, "content")
+        if content is None:
             continue
-        parts = content.get("parts") or ()
+        parts = _get(content, "parts") or ()
         if not isinstance(parts, (list, tuple)):
             continue
         for part in parts:
-            if not isinstance(part, Mapping):
-                continue
-            call_info = part.get("function_call")
-            if isinstance(call_info, Mapping):
-                name = str(call_info.get("name") or "")
+            call_info = _get(part, "function_call")
+            if call_info is not None:
+                name = str(_get(call_info, "name") or "")
                 if not name:
                     continue
                 calls.append(
                     Call(
                         name=name,
-                        args=_args_of(call_info.get("args")),
+                        args=_args_of(_get(call_info, "args")),
                         result_ok=None,
-                        raw=dict(call_info),
+                        raw=dict(call_info) if isinstance(call_info, Mapping) else {"name": name},
                     )
                 )
                 index = len(calls) - 1
-                call_id = str(call_info.get("id") or "")
+                call_id = str(_get(call_info, "id") or "")
                 if call_id:
                     by_id[call_id] = index
                 pending_by_name[name].append(index)
                 continue
 
-            response = part.get("function_response")
-            if isinstance(response, Mapping):
-                name = str(response.get("name") or "")
-                call_id = str(response.get("id") or "")
+            response = _get(part, "function_response")
+            if response is not None:
+                name = str(_get(response, "name") or "")
+                call_id = str(_get(response, "id") or "")
                 index = by_id.pop(call_id, None) if call_id else None
                 if index is None and name and pending_by_name[name]:
                     index = pending_by_name[name].popleft()
@@ -186,7 +191,7 @@ def trajectory_from_adk_events(events: Iterable[Mapping[str, Any]]) -> Trajector
                 calls[index] = Call(
                     name=original.name,
                     args=original.args,
-                    result_ok=_ok(response.get("response")),
+                    result_ok=_ok(_get(response, "response")),
                     raw=original.raw,
                 )
     return Trajectory(calls=calls)

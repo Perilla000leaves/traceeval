@@ -1,5 +1,5 @@
-# 接入依赖：装了这两样，LangChain / LangGraph / ADK 的接入就能直接用。
-# 核心判定逻辑（trajectory / metrics / report / suite / cli）本身不依赖任何框架，
-# 只测 OpenAI / Anthropic 的消息格式时可以不装。
+# 接入依赖：装了这些，LangChain / LangGraph / ADK 的接入就能直接用。
 langchain-core>=0.3
+# LangChain 官方的轨迹评测器：轨迹/参数匹配直接委托给它，不自己实现第二套
+agentevals>=0.0.9
 google-adk>=1.0

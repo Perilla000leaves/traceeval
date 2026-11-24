@@ -14,8 +14,12 @@
 
 from .adapters import ADAPTERS, parse
 from .integrations import (
+    ADK_AVAILABLE,
+    AGENTEVALS_AVAILABLE,
+    LANGCHAIN_AVAILABLE,
     AdkTraceRecorder,
     TraceCallbackHandler,
+    evaluate_trajectory,
     trajectory_from_adk_events,
     trajectory_from_otel_spans,
 )
@@ -39,6 +43,9 @@ __version__ = "0.1.0"
 
 __all__ = [
     "ADAPTERS",
+    "ADK_AVAILABLE",
+    "AGENTEVALS_AVAILABLE",
+    "LANGCHAIN_AVAILABLE",
     "ANY_VALUE",
     "AdkTraceRecorder",
     "Call",
@@ -53,6 +60,7 @@ __all__ = [
     "as_expected",
     "assert_tools",
     "duplicates",
+    "evaluate_trajectory",
     "load_cases",
     "load_traces",
     "match_names",

@@ -7,6 +7,9 @@
 
 这样别人不需要 API key 也能复现你的评测结果：拿你的 suite + traces 重新打分即可。
 要对比自己的模型，只需要按同样格式录一份 traces——这就是本项目能做「公开基线」的原因。
+
+输入校验用 **pydantic 的声明式模型**，不手写 if/raise：
+行格式写错时报错自带字段路径与期望类型，也不用维护一套自己的校验逻辑。
 """
 from __future__ import annotations
 
@@ -16,14 +19,71 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
 from . import adapters
 from .metrics import CaseResult, score
 from .trajectory import Status, Trajectory
 
 
+class CaseRow(BaseModel):
+    """用例集的一行。字段名与 jsonl 键一致。"""
+
+    model_config = ConfigDict(validate_default=True)
+
+    id: str = ""
+    expected_tools: list[Any] | None = None
+    question: str = ""
+    match: str | None = None
+    args_mode: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("id")
+    @classmethod
+    def _id_required(cls, value: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            raise ValueError("缺少 id")
+        return text
+
+    @field_validator("expected_tools")
+    @classmethod
+    def _expected_required(cls, value: list[Any] | None) -> list[Any]:
+        if value is None:
+            raise ValueError("缺少 expected_tools")
+        return value
+
+
+class TraceRow(BaseModel):
+    """轨迹集的一行：`{id, format, payload, latency_ms?, cost_usd?}`。"""
+
+    model_config = ConfigDict(validate_default=True)
+
+    id: str = ""
+    format: str = "calls"
+    payload: list[Any] | None = None
+    latency_ms: float | None = None
+    cost_usd: float | None = None
+
+    @field_validator("id")
+    @classmethod
+    def _id_required(cls, value: str) -> str:
+        text = str(value or "").strip()
+        if not text:
+            raise ValueError("缺少 id")
+        return text
+
+    @field_validator("payload")
+    @classmethod
+    def _payload_required(cls, value: list[Any] | None) -> list[Any]:
+        if value is None:
+            raise ValueError("payload 必须是列表")
+        return value
+
+
 @dataclass
 class Case:
-    """一条用例。`match` / `args_mode` 可按用例覆盖全局默认值。"""
+    """已校验的用例。`match` / `args_mode` 可按用例覆盖全局默认值。"""
 
     case_id: str
     expected_tools: list[Any]
@@ -33,50 +93,46 @@ class Case:
     tags: list[str] = field(default_factory=list)
 
 
-def load_cases(path: str | Path) -> list[Case]:
-    """读 jsonl 用例集；缺 id 或期望工具的条目直接报错（避免静默跳过）。"""
-    cases: list[Case] = []
+def _read_jsonl(path: str | Path) -> Iterable[tuple[int, dict[str, Any]]]:
     for line_no, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
         if not raw.strip():
             continue
-        row = json.loads(raw)
-        case_id = str(row.get("id") or "").strip()
-        if not case_id:
-            raise ValueError(f"{path}:{line_no} 缺少 id")
-        expected = row.get("expected_tools")
-        if expected is None:
-            raise ValueError(f"{path}:{line_no}（{case_id}）缺少 expected_tools")
+        yield line_no, json.loads(raw)
+
+
+def load_cases(path: str | Path) -> list[Case]:
+    """读 jsonl 用例集；格式错误由 pydantic 报出字段路径。"""
+    cases: list[Case] = []
+    for line_no, row in _read_jsonl(path):
+        try:
+            parsed = CaseRow.model_validate(row)
+        except ValidationError as error:
+            raise ValueError(f"{path}:{line_no} 用例格式错误：{error}") from None
         cases.append(
             Case(
-                case_id=case_id,
-                expected_tools=list(expected),
-                question=str(row.get("question") or ""),
-                match=row.get("match"),
-                args_mode=row.get("args_mode"),
-                tags=list(row.get("tags") or []),
+                case_id=parsed.id,
+                expected_tools=list(parsed.expected_tools or []),
+                question=parsed.question,
+                match=parsed.match,
+                args_mode=parsed.args_mode,
+                tags=list(parsed.tags),
             )
         )
     return cases
 
 
 def load_traces(path: str | Path) -> dict[str, Trajectory]:
-    """读 jsonl 轨迹集：每行 `{id, format, payload, latency_ms?, cost_usd?}`。"""
+    """读 jsonl 轨迹集。"""
     traces: dict[str, Trajectory] = {}
-    for line_no, raw in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
-        if not raw.strip():
-            continue
-        row = json.loads(raw)
-        case_id = str(row.get("id") or "").strip()
-        if not case_id:
-            raise ValueError(f"{path}:{line_no} 缺少 id")
-        fmt = str(row.get("format") or "calls")
-        payload = row.get("payload")
-        if not isinstance(payload, (list, tuple)):
-            raise ValueError(f"{path}:{line_no}（{case_id}）payload 必须是列表")
-        trajectory = adapters.parse(payload, fmt)
-        trajectory.latency_ms = row.get("latency_ms")
-        trajectory.cost_usd = row.get("cost_usd")
-        traces[case_id] = trajectory
+    for line_no, row in _read_jsonl(path):
+        try:
+            parsed = TraceRow.model_validate(row)
+        except ValidationError as error:
+            raise ValueError(f"{path}:{line_no} 轨迹格式错误：{error}") from None
+        trajectory = adapters.parse(parsed.payload or [], parsed.format)
+        trajectory.latency_ms = parsed.latency_ms
+        trajectory.cost_usd = parsed.cost_usd
+        traces[parsed.id] = trajectory
     return traces
 
 
@@ -116,4 +172,4 @@ def run(
     return results
 
 
-__all__ = ["Case", "load_cases", "load_traces", "run"]
+__all__ = ["Case", "CaseRow", "TraceRow", "load_cases", "load_traces", "run"]

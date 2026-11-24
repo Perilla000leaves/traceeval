@@ -31,9 +31,29 @@ except ImportError:  # pragma: no cover - 取决于环境
 
     LANGCHAIN_AVAILABLE = False
 
-from ..trajectory import Call, Trajectory
+try:  # LangChain 官方的轨迹评测器：名字/参数匹配直接委托给它
+    from agentevals.trajectory.match import create_trajectory_match_evaluator
 
-__all__ = ["LANGCHAIN_AVAILABLE", "TraceCallbackHandler"]
+    AGENTEVALS_AVAILABLE = True
+except ImportError:  # pragma: no cover - 取决于环境
+    create_trajectory_match_evaluator = None  # type: ignore[assignment]
+    AGENTEVALS_AVAILABLE = False
+
+from .. import adapters
+from ..metrics import CaseResult, score
+from ..trajectory import Call, Status, Trajectory
+
+__all__ = [
+    "AGENTEVALS_AVAILABLE",
+    "LANGCHAIN_AVAILABLE",
+    "TraceCallbackHandler",
+    "evaluate_trajectory",
+]
+
+#: 我们的匹配模式 → agentevals 的匹配模式（没有对应项的走自己的实现）
+_TRAJECTORY_MODE = {"exact": "strict", "any_order": "unordered"}
+#: 我们的参数模式 → agentevals 的参数模式（superset = 期望的 key 都在）
+_ARGS_MODE = {"full": "exact", "keys": "superset"}
 
 
 def _output_ok(output: Any) -> bool:
@@ -120,3 +140,59 @@ class TraceCallbackHandler(_BaseCallbackHandler):  # type: ignore[misc]
         self._calls[index] = Call(
             name=original.name, args=original.args, result_ok=ok, raw=original.raw
         )
+
+
+def evaluate_trajectory(
+    outputs: Any,
+    reference_outputs: Any,
+    *,
+    match: str = "any_order",
+    args_mode: str = "keys",
+    case_id: str = "langchain",
+) -> CaseResult:
+    """用 LangChain 官方的 `agentevals` 判定一条 LangChain 轨迹。
+
+    名字匹配、参数匹配、顺序语义都交给 agentevals，不再自己实现第二套规则：
+
+    | 本项目的写法 | 实际调用的 agentevals 参数 |
+    |---|---|
+    | `match="exact"` | `trajectory_match_mode="strict"` |
+    | `match="any_order"` | `trajectory_match_mode="unordered"` |
+    | `args_mode="full"` | `tool_args_match_mode="exact"` |
+    | `args_mode="keys"` | `tool_args_match_mode="superset"`（期望的 key 都在即可） |
+
+    `match="in_order"` 在 agentevals 里没有对应语义，退回本项目实现（只做子序列判断）。
+
+    输入是 LangChain 风格的 messages 列表（或 langchain 的 BaseMessage 列表）。
+    """
+    if AGENTEVALS_AVAILABLE and match in _TRAJECTORY_MODE:
+        evaluator = create_trajectory_match_evaluator(
+            trajectory_match_mode=_TRAJECTORY_MODE[match],
+            tool_args_match_mode=_ARGS_MODE.get(args_mode, "superset"),
+        )
+        verdict = evaluator(outputs=outputs, reference_outputs=reference_outputs) or {}
+        passed = bool(verdict.get("score"))
+        return CaseResult(
+            case_id=case_id,
+            status=Status.PASS if passed else Status.FAIL,
+            reasons=[]
+            if passed
+            else [f"agentevals 判定不通过（{verdict.get('key') or 'unknown'}）"],
+            codes=[] if passed else ["trajectory_mismatch"],
+            metrics={"engine": "agentevals", "key": verdict.get("key")},
+        )
+
+    # 没装 agentevals，或用了它没有的语义（in_order）：走本项目实现
+    actual = adapters.from_openai(outputs)
+    reference = adapters.from_openai(reference_outputs)
+    # 消息级轨迹里没有 tool 结果（返回在别的消息里），不能按「假成功」判
+    result = score(
+        case_id,
+        [call.name for call in reference.calls],
+        actual,
+        match=match,
+        args_mode=args_mode,
+        require_results=False,
+    )
+    result.metrics["engine"] = "builtin"
+    return result
